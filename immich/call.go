@@ -26,6 +26,8 @@ const (
 	EndPointCreateAlbum            = "CreateAlbum"
 	EndPointGetAssetAlbums         = "GetAssetAlbums"
 	EndPointDeleteAlbum            = "DeleteAlbum"
+	EndPointAddUserToAlbum         = "AddUserToAlbum"
+	EndPointRemoveUserFromAlbum    = "RemoveUserFromAlbum"
 	EndPointPingServer             = "PingServer"
 	EndPointValidateConnection     = "ValidateConnection"
 	EndPointGetServerStatistics    = "GetServerStatistics"

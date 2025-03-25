@@ -3,23 +3,24 @@ package immich
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/simulot/immich-go/internal/assets"
 )
 
 type AlbumSimplified struct {
-	ID          string `json:"id,omitempty"`
-	AlbumName   string `json:"albumName"`
-	Description string `json:"description,omitempty"`
-	// OwnerID                    string    `json:"ownerId"`
-	// CreatedAt                  time.Time `json:"createdAt"`
-	// UpdatedAt                  time.Time `json:"updatedAt"`
+	ID          string    `json:"id,omitempty"`
+	AlbumName   string    `json:"albumName"`
+	Description string    `json:"description,omitempty"`
+	OwnerID     string    `json:"ownerId"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 	// AlbumThumbnailAssetID      string    `json:"albumThumbnailAssetId"`
-	// SharedUsers                []string  `json:"sharedUsers"`
-	// Owner                      User      `json:"owner"`
-	// Shared                     bool      `json:"shared"`
-	// AssetCount                 int       `json:"assetCount"`
+	AlbumUsers []interface{} `json:"albumUsers"`
+	Owner                      User      `json:"owner"`
+	Shared     bool `json:"shared"`
+	AssetCount int  `json:"assetCount"`
 	// LastModifiedAssetTimestamp time.Time `json:"lastModifiedAssetTimestamp"
 	AssetIds []string `json:"assetIds,omitempty"`
 }
@@ -36,6 +37,15 @@ func AlbumsFromAlbumSimplified(albums []AlbumSimplified) []assets.Album {
 	return result
 }
 
+type AlbumUser struct {
+	Role   string `json:"role"`
+	UserID string `json:"userId"`
+}
+
+type AlbumUsers struct {
+	AlbumUsers []AlbumUser `json:"albumUsers"`
+}
+
 func (ic *ImmichClient) GetAllAlbums(ctx context.Context) ([]AlbumSimplified, error) {
 	var albums []AlbumSimplified
 	err := ic.newServerCall(ctx, EndPointGetAllAlbums).
@@ -47,6 +57,23 @@ func (ic *ImmichClient) GetAllAlbums(ctx context.Context) ([]AlbumSimplified, er
 		return nil, err
 	}
 	return albums, nil
+}
+
+func (ic *ImmichClient) AddUserToAlbum(ctx context.Context, albumID string, userID string, role string) error {
+	if ic.dryRun {
+		return nil
+	}
+	return ic.newServerCall(ctx, EndPointAddUserToAlbum).do(
+		putRequest(fmt.Sprintf("/albums/%s/users", albumID), setAcceptJSON(),
+			setJSONBody(AlbumUsers{AlbumUsers: []AlbumUser{{Role: role, UserID: userID}}})))
+}
+
+func (ic *ImmichClient) RemoveUserFromAlbum(ctx context.Context, albumID string, userID string) error {
+	if ic.dryRun {
+		return nil
+	}
+	return ic.newServerCall(ctx, EndPointRemoveUserFromAlbum).do(
+		deleteRequest(fmt.Sprintf("/albums/%s/user/%s", albumID, userID)))
 }
 
 type AlbumContent struct {
