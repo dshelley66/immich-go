@@ -73,6 +73,8 @@ type ImmichAlbumInterface interface {
 	// GetAssetAlbums get all albums that an asset belongs to
 	GetAssetAlbums(ctx context.Context, assetID string) ([]AlbumSimplified, error)
 	DeleteAlbum(ctx context.Context, id string) error
+	AddUserToAlbum(ctx context.Context, albumID string, userID string, role string) error
+	RemoveUserFromAlbum(ctx context.Context, albumID string, userID string) error
 }
 type ImmichTagInterface interface {
 	GetAllTags(ctx context.Context) ([]TagSimplified, error)
