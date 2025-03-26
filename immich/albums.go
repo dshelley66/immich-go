@@ -9,20 +9,24 @@ import (
 	"github.com/simulot/immich-go/internal/assets"
 )
 
+type AlbumUser struct {
+	User User   `json:"user"`
+	Role string `json:"role"`
+}
+
 type AlbumSimplified struct {
-	ID          string    `json:"id,omitempty"`
-	AlbumName   string    `json:"albumName"`
-	Description string    `json:"description,omitempty"`
-	OwnerID     string    `json:"ownerId"`
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
-	// AlbumThumbnailAssetID      string    `json:"albumThumbnailAssetId"`
-	AlbumUsers []interface{} `json:"albumUsers"`
-	Owner                      User      `json:"owner"`
-	Shared     bool `json:"shared"`
-	AssetCount int  `json:"assetCount"`
-	// LastModifiedAssetTimestamp time.Time `json:"lastModifiedAssetTimestamp"
-	AssetIds []string `json:"assetIds,omitempty"`
+	ID                         string      `json:"id,omitempty"`
+	AlbumName                  string      `json:"albumName"`
+	Description                string      `json:"description,omitempty"`
+	OwnerID                    string      `json:"ownerId"`
+	CreatedAt                  time.Time   `json:"createdAt"`
+	UpdatedAt                  time.Time   `json:"updatedAt"`
+	AlbumThumbnailAssetID      string      `json:"albumThumbnailAssetId"`
+	AlbumUsers                 []AlbumUser `json:"albumUsers"`
+	Owner                      User        `json:"owner"`
+	Shared                     bool        `json:"shared"`
+	AssetCount                 int         `json:"assetCount"`
+	LastModifiedAssetTimestamp time.Time   `json:"lastModifiedAssetTimestamp"`
 }
 
 func AlbumsFromAlbumSimplified(albums []AlbumSimplified) []assets.Album {
@@ -35,15 +39,6 @@ func AlbumsFromAlbumSimplified(albums []AlbumSimplified) []assets.Album {
 		})
 	}
 	return result
-}
-
-type AlbumUser struct {
-	Role   string `json:"role"`
-	UserID string `json:"userId"`
-}
-
-type AlbumUsers struct {
-	AlbumUsers []AlbumUser `json:"albumUsers"`
 }
 
 func (ic *ImmichClient) GetAllAlbums(ctx context.Context) ([]AlbumSimplified, error) {
@@ -59,13 +54,25 @@ func (ic *ImmichClient) GetAllAlbums(ctx context.Context) ([]AlbumSimplified, er
 	return albums, nil
 }
 
+type AlbumUserRoleforShare struct {
+	Role   string `json:"role"`
+	UserID string `json:"userId"`
+}
+
 func (ic *ImmichClient) AddUserToAlbum(ctx context.Context, albumID string, userID string, role string) error {
 	if ic.dryRun {
 		return nil
 	}
+	body := struct {
+		AlbumUsers []AlbumUserRoleforShare `json:"albumUsers"`
+	}{
+		AlbumUsers: []AlbumUserRoleforShare{
+			{Role: role, UserID: userID},
+		},
+	}
 	return ic.newServerCall(ctx, EndPointAddUserToAlbum).do(
 		putRequest(fmt.Sprintf("/albums/%s/users", albumID), setAcceptJSON(),
-			setJSONBody(AlbumUsers{AlbumUsers: []AlbumUser{{Role: role, UserID: userID}}})))
+			setJSONBody(body)))
 }
 
 func (ic *ImmichClient) RemoveUserFromAlbum(ctx context.Context, albumID string, userID string) error {

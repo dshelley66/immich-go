@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 
 	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/internal/fileevent"
+	"github.com/simulot/immich-go/internal/formats"
 	"github.com/spf13/cobra"
 )
 
@@ -19,8 +21,8 @@ func NewAlbumCommand(ctx context.Context, a *app.Application) *cobra.Command {
 	app.AddClientFlags(ctx, cmd, a, false)
 
 	cmd.AddCommand(NewAlbumListCommand(ctx, cmd, a))
-	cmd.AddCommand(NewAlbumAddUserCommand(ctx, cmd, a))
-	cmd.AddCommand(NewAlbumRemoveUserCommand(ctx, cmd, a))
+	cmd.AddCommand(NewAlbumShareCommand(ctx, cmd, a))
+	cmd.AddCommand(NewAlbumUnshareCommand(ctx, cmd, a))
 	cmd.AddCommand(NewAlbumAddUserAll(ctx, cmd, a))
 	cmd.AddCommand(NewAlbumRemoveUserAll(ctx, cmd, a))
 
@@ -35,41 +37,61 @@ func NewAlbumListCommand(ctx context.Context, parent *cobra.Command, app *app.Ap
 		Use:   "list",
 		Short: "List albums",
 	}
-	// add a command line flag for passing in a search pattern
-	cmd.Flags().StringVarP(&app.pattern, "pattern", "p", ".*", "Pattern to filter the album list")
+	var albumPattern string
+	cmd.Flags().StringVarP(&albumPattern, "pattern", "p", ".*", "Pattern to filter the album list")
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
 		serverAlbums, err := app.Client().Immich.GetAllAlbums(ctx)
 		if err != nil {
 			return fmt.Errorf("can't get the album list from the server: %w", err)
 		}
+
+		table := formats.OutFormatForList(os.Stdout)
+		table.SetHeader([]string{"ID", "Album Name", "Shared", "Shr Cnt", "Asset Count"})
 		for _, al := range serverAlbums {
-			fmt.Printf("Album: %s: %s\n", al.ID, al.AlbumName)
+			if matched, _ := regexp.MatchString(albumPattern, al.AlbumName); matched {
+				table.Append([]string{al.ID, al.AlbumName, fmt.Sprintf("%t", al.Shared), fmt.Sprintf("%d", len(al.AlbumUsers)),
+					fmt.Sprintf("%d", al.AssetCount)})
+			}
 		}
+		table.Render()
 		return nil
 	}
 	return cmd
 }
 
-func NewAlbumAddUserCommand(ctx context.Context, parent *cobra.Command, app *app.Application) *cobra.Command {
+func NewAlbumShareCommand(ctx context.Context, parent *cobra.Command, app *app.Application) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "adduser <albumID> <userID>",
-		Short: "Add user with role to album",
+		Use:   "share <albumID | regex> <userID | regex>",
+		Short: "Share album(s) to user(s) with role",
 		Args:  cobra.ExactArgs(2),
 	}
 	var role string
-	cmd.Flags().StringVarP(&role, "role", "r", "viewer", "Role to assign to user within the album")
+	cmd.Flags().StringVarP(&role, "role", "r", "viewer", "Role to assign to user within the album(s)")
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
-		log := app.Log()
-		if app.Jnl() == nil {
-			app.SetJnl(fileevent.NewRecorder(app.Log().Logger))
-			app.Jnl().SetLogger(app.Log().SetLogWriter(os.Stdout))
-		}
+		// logic:
+		// determine if args[0] is UUID
+		// determine if args[1] is UUID
+		//
+		// if albumID is UUID:
+		//  - skip getting album list and put album ID in album array
+		//  - get album info (also validate the album exists)
+		// else
+		// - get a list of albums, add to array any matching the regex
+		// if userID is UUID:
+		//  - skip getting user list and put userID in user array
+		//  - get user info (also validate the user exists)
+		// else
+		// - get a list of users, add to array any matching the regex
+		// for each album in album array
+		//	for each user in user array
+		//	- check album info to see if it is already shared with user
+		//	- if not, add user to album
 		albumID := args[0]
 		userID := args[1]
 
-		log.Message("Adding user %s to album %s with role %s", albumID, userID, role)
+		app.Log().Message("Adding user %s to album %s with role %s", albumID, userID, role)
 		err := app.Client().Immich.AddUserToAlbum(ctx, albumID, userID, role)
 		if err != nil {
 			return fmt.Errorf("can't add the user to the album: %w", err)
@@ -80,23 +102,18 @@ func NewAlbumAddUserCommand(ctx context.Context, parent *cobra.Command, app *app
 	return cmd
 }
 
-func NewAlbumRemoveUserCommand(ctx context.Context, parent *cobra.Command, app *app.Application) *cobra.Command {
+func NewAlbumUnshareCommand(ctx context.Context, parent *cobra.Command, app *app.Application) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "removeuser <albumID> <userID>",
-		Short: "Remove user's access to album",
+		Use:   "unshare <albumID | regex> <userID | regex>",
+		Short: "Remove user's access from album(s)",
 		Args:  cobra.ExactArgs(2),
 	}
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
-		log := app.Log()
-		if app.Jnl() == nil {
-			app.SetJnl(fileevent.NewRecorder(app.Log().Logger))
-			app.Jnl().SetLogger(app.Log().SetLogWriter(os.Stdout))
-		}
 		albumID := args[0]
 		userID := args[1]
 
-		log.Message("Removing user %s from album %s", albumID, userID)
+		app.Log().Message("Removing user %s from album %s", albumID, userID)
 		err := app.Client().Immich.RemoveUserFromAlbum(ctx, albumID, userID)
 		if err != nil {
 			return fmt.Errorf("can't remove the user to the album: %w", err)
@@ -107,6 +124,7 @@ func NewAlbumRemoveUserCommand(ctx context.Context, parent *cobra.Command, app *
 	return cmd
 }
 
+// not needed anymore
 func NewAlbumAddUserAll(ctx context.Context, parent *cobra.Command, app *app.Application) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "adduserall <userID>",
@@ -145,6 +163,7 @@ func NewAlbumAddUserAll(ctx context.Context, parent *cobra.Command, app *app.App
 	return cmd
 }
 
+// not needed anymore
 func NewAlbumRemoveUserAll(ctx context.Context, parent *cobra.Command, app *app.Application) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "removeuserall <userID>",
@@ -179,6 +198,7 @@ func NewAlbumRemoveUserAll(ctx context.Context, parent *cobra.Command, app *app.
 
 	return cmd
 }
+
 // type DeleteAlbumCmd struct {
 // 	*cmd.RootImmichFlags
 // 	pattern   *regexp.Regexp // album pattern
