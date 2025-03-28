@@ -3,7 +3,7 @@ package immich
 import (
 	"context"
 	"fmt"
-	"time"
+"time"
 
 	"github.com/google/uuid"
 	"github.com/simulot/immich-go/internal/assets"
@@ -27,6 +27,7 @@ type AlbumSimplified struct {
 	Shared                     bool        `json:"shared"`
 	AssetCount                 int         `json:"assetCount"`
 	LastModifiedAssetTimestamp time.Time   `json:"lastModifiedAssetTimestamp"`
+	Assets                     []*Asset    `json:"assets,omitempty"`
 }
 
 func AlbumsFromAlbumSimplified(albums []AlbumSimplified) []assets.Album {
@@ -84,7 +85,7 @@ func (ic *ImmichClient) RemoveUserFromAlbum(ctx context.Context, albumID string,
 }
 
 type AlbumContent struct {
-	ID string `json:"id,omitempty"`
+		ID string `json:"id,omitempty"`
 	// OwnerID                    string    `json:"ownerId"`
 	AlbumName   string   `json:"albumName"`
 	Description string   `json:"description"`
@@ -124,8 +125,8 @@ type AssetSimplified struct {
 	// JustUploaded bool   `json:"-"`
 }
 
-func (ic *ImmichClient) GetAlbumInfo(ctx context.Context, id string, withoutAssets bool) (AlbumContent, error) {
-	var album AlbumContent
+func (ic *ImmichClient) GetAlbumInfo(ctx context.Context, id string, withoutAssets bool) (AlbumSimplified, error) {
+	var album AlbumSimplified
 	query := id
 	if withoutAssets {
 		query += "?withoutAssets=true"

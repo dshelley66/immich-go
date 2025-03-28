@@ -21,6 +21,7 @@ type ImmichInterface interface {
 	ImmichTagInterface
 	ImmichStackInterface
 	ImmichJobInterface
+	ImmichUserInterface
 }
 
 type ImmichAssetInterface interface {
@@ -62,7 +63,7 @@ type ImmichClientInterface interface {
 
 type ImmichAlbumInterface interface {
 	GetAllAlbums(ctx context.Context) ([]AlbumSimplified, error)
-	GetAlbumInfo(ctx context.Context, id string, withoutAssets bool) (AlbumContent, error)
+	GetAlbumInfo(ctx context.Context, id string, withoutAssets bool) (AlbumSimplified, error)
 	CreateAlbum(
 		ctx context.Context,
 		tilte string,
@@ -107,6 +108,11 @@ type ImmichJobInterface interface {
 		force bool,
 	) (SendJobCommandResponse, error)
 	CreateJob(ctx context.Context, name JobName) error
+}
+
+type ImmichUserInterface interface {
+	GetAllUsers(ctx context.Context) ([]User, error)
+	GetUserInfo(ctx context.Context, userID string) (User, error)
 }
 
 type myBool bool

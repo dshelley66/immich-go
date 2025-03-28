@@ -8,6 +8,7 @@ import (
 	"github.com/simulot/immich-go/app/cmd/archive"
 	"github.com/simulot/immich-go/app/cmd/stack"
 	"github.com/simulot/immich-go/app/cmd/upload"
+	"github.com/simulot/immich-go/app/cmd/user"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -35,6 +36,7 @@ func RootImmichGoCommand(ctx context.Context) (*cobra.Command, *app.Application)
 		archive.NewArchiveCommand(ctx, a),
 		stack.NewStackCommand(ctx, a),
 		album.NewAlbumCommand(ctx, a),
+		user.NewUserCommand(ctx, a),
 	)
 
 	return c, a
